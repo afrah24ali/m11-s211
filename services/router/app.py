@@ -220,21 +220,32 @@ async def forward_to_backend(target: Target, question: str, request_id: str) -> 
             url = f"{RAG_URL.rstrip('/')}/rag/answer"
             payload = {"question": question}
 
-        response = await client.post(url, headers=headers, json=payload)
-
         try:
-            response_json = response.json()
-        except Exception:
-            response_json = {
-                "error": "Backend did not return JSON",
-                "text": response.text,
-            }
+            response = await client.post(url, headers=headers, json=payload)
 
-        return {
-            "backend_url": url,
-            "status_code": response.status_code,
-            "response": response_json,
+            try:
+                response_json = response.json()
+            except Exception:
+               response_json = {
+            "error": "Backend did not return JSON",
+            "text": response.text,
         }
+
+            return {
+        "backend_url": url,
+        "status_code": response.status_code,
+        "response": response_json,
+    }
+
+        except httpx.RequestError as exc:
+            return {
+        "backend_url": url,
+        "status_code": 503,
+        "response": {
+            "error": "Backend unavailable",
+            "detail": str(exc),
+        },
+    }
 
 
 @app.post("/route")
